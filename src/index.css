@@ -1,0 +1,139 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #c8912e;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #18181b;
+  --color-accent: #f4f4f5;
+  --color-error: #ef4444;
+  --color-success: #10b981;
+}
+
+@layer base {
+  body {
+    @apply bg-zinc-50 text-zinc-900 antialiased;
+  }
+}
+
+/* -------------------------------------------------------------------------
+   PDF EXPORT & PRINT STYLES
+   ------------------------------------------------------------------------- */
+@media print {
+  @page {
+    margin: 1.5cm;
+    size: A4;
+  }
+
+  /* Force le rendu des couleurs et fonds */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* On cache tout ce qui est interactif ou inutile */
+  header, 
+  nav, 
+  button, 
+  .print\:hidden,
+  aside.params-panel,
+  input[type="range"] {
+    display: none !important;
+  }
+
+  /* Nettoyage du body pour l'impression */
+  body {
+    background: white !important;
+    color: black !important;
+    padding: 0 !important;
+  }
+
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+  }
+
+  .container {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Typographie plus nette pour le papier */
+  h1 { font-size: 24pt !important; margin-bottom: 10pt !important; color: #18181b !important; }
+  h2 { font-size: 18pt !important; margin-top: 20pt !important; margin-bottom: 10pt !important; border-bottom: 1px solid #e4e4e7; padding-bottom: 5pt; }
+  h3 { font-size: 14pt !important; margin-bottom: 8pt !important; }
+
+  /* Grid Reset : Tout en colonne pour le PDF */
+  .grid {
+    display: block !important;
+  }
+
+  /* On force les sections à prendre toute la largeur */
+  .lg\:col-span-8, .lg\:col-span-4, .lg\:col-span-2, .lg\:col-span-12, aside {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-bottom: 20pt !important;
+  }
+
+  /* Cartes et Sections */
+  .bg-white, .bg-zinc-900 {
+    border: 1px solid #e4e4e7 !important;
+    border-radius: 8pt !important;
+    box-shadow: none !important;
+    padding: 15pt !important;
+    margin-bottom: 15pt !important;
+    break-inside: avoid; /* Évite de couper une carte en deux */
+  }
+
+  /* KPI Cards en 2 colonnes sur papier */
+  .lg\:grid-cols-4, .md\:grid-cols-2 {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10pt !important;
+  }
+
+  /* Gestion des graphiques */
+  .recharts-responsive-container {
+    width: 100% !important;
+    height: 300px !important;
+  }
+  
+  canvas {
+    max-width: 100% !important;
+  }
+
+  /* Inputs mode lecture seule pour le PDF */
+  input {
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    font-weight: bold !important;
+    color: black !important;
+  }
+
+  /* Suppression de l'effet Sticky */
+  .sticky {
+    position: relative !important;
+    top: 0 !important;
+  }
+
+  /* Empêcher les coupures de texte au milieu d'un paragraphe */
+  p, tr, li {
+    break-inside: avoid;
+  }
+
+  /* Tableaux plus compacts */
+  table {
+    font-size: 9pt !important;
+  }
+  th, td {
+    padding: 4pt 8pt !important;
+  }
+
+  /* Styles spécifiques pour le bandeau optimal */
+  .border-emerald-500 {
+    border: 2px solid #10b981 !important;
+    background-color: #f0fdf4 !important;
+  }
+}
