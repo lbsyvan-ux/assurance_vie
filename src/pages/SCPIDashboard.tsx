@@ -480,7 +480,7 @@ export const SCPIDashboard = () => {
                 {tab === 'compare' ? "Comparaison du capital" : "Évolution du capital"}
               </h3>
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData}>
+                <AreaChart data={chartData as any[]}>
                   <defs>
                     <linearGradient id="colorCapital" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#c8912e" stopOpacity={0.1}/>
@@ -536,7 +536,7 @@ export const SCPIDashboard = () => {
                 {tab === 'compare' ? "Comparaison de l'effort d'épargne" : "Revenus & Effort d'épargne"}
               </h3>
               <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={chartData}>
+                <ComposedChart data={chartData as any[]}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f1f1" vertical={false} />
                   <XAxis 
                     dataKey="year" 
