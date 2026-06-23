@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Loader2, ArrowLeft, Mail } from 'lucide-react';
+import { Loader2, ArrowLeft, ArrowRight, Mail, UserPlus } from 'lucide-react';
 
 type AuthView = 'login' | 'signup' | 'forgot-password';
 
 export const LoginPage = () => {
   const [view, setView] = useState<AuthView>('login');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -36,7 +38,11 @@ export const LoginPage = () => {
     }
     setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signUp({ email, password });
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { first_name: firstName.trim(), last_name: lastName.trim() } },
+      });
       if (error) throw error;
       // Si la confirmation d'email est désactivée, une session est créée
       // immédiatement => on enchaîne sur le choix d'abonnement.
@@ -77,7 +83,8 @@ export const LoginPage = () => {
         
         {view === 'login' && (
           <>
-            <div className="flex flex-col space-y-3 text-center mb-10">
+            <div className="flex flex-col items-center space-y-3 text-center mb-10">
+              <img src="/wealthflow-logo.svg" alt="WealthFlow" className="h-12 w-12 object-contain" />
               <h1 className="text-3xl font-black tracking-tight text-zinc-900">Patrimoine Analyse</h1>
               <p className="text-zinc-400 font-medium">Accédez à votre espace sécurisé</p>
             </div>
@@ -140,19 +147,50 @@ export const LoginPage = () => {
 
         {view === 'signup' && (
           <>
-            <div className="flex flex-col space-y-3 text-center mb-10">
-              <h1 className="text-3xl font-black tracking-tight text-zinc-900">Créer un compte</h1>
-              <p className="text-zinc-400 font-medium">7 jours d'essai gratuit · sans engagement</p>
+            <div className="flex flex-col items-center space-y-3 text-center mb-8">
+              <img src="/wealthflow-logo.svg" alt="WealthFlow" className="h-12 w-12 object-contain" />
+              <h1 className="text-3xl font-black tracking-tight text-zinc-900">Patrimoine Analyse</h1>
+              <div className="flex items-center gap-2 text-sm font-bold text-zinc-600">
+                <span>Relevé PDF</span>
+                <ArrowRight className="h-4 w-4 text-primary" />
+                <span>Analyse claire</span>
+              </div>
+              <p className="text-zinc-400 font-medium text-sm">Aussi simple que ça · 7 jours d'essai gratuit</p>
             </div>
 
-            <form onSubmit={handleSignup} className="space-y-6">
+            <form onSubmit={handleSignup} className="space-y-5">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest ml-1">Prénom</label>
+                  <input
+                    type="text"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    placeholder="Frodon"
+                    required
+                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-100 rounded-2xl outline-none transition-all font-medium focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest ml-1">Nom</label>
+                  <input
+                    type="text"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    placeholder="Sacquet"
+                    required
+                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-100 rounded-2xl outline-none transition-all font-medium focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
+              </div>
+
               <div className="space-y-2">
-                <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest ml-1">Email</label>
+                <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest ml-1">Email professionnel</label>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="contact@simulation.fr"
+                  placeholder="prenom.nom@cabinet.fr"
                   required
                   className="w-full px-5 py-4 bg-zinc-50 border border-zinc-100 rounded-2xl outline-none transition-all font-medium focus:ring-2 focus:ring-primary/20"
                 />
@@ -174,10 +212,11 @@ export const LoginPage = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex items-center justify-center py-4 bg-primary text-white rounded-2xl font-bold hover:opacity-90 disabled:opacity-50 transition-all shadow-lg"
+                className="w-full flex items-center justify-center gap-2 py-4 bg-primary text-white rounded-2xl font-bold hover:opacity-90 disabled:opacity-50 transition-all shadow-lg shadow-primary/20"
               >
-                {loading ? <Loader2 className="animate-spin h-5 w-5" /> : 'Continuer vers le paiement'}
+                {loading ? <Loader2 className="animate-spin h-5 w-5" /> : <><UserPlus className="h-5 w-5" /> Démarrer l'essai gratuit</>}
               </button>
+              <p className="text-center text-[11px] text-zinc-400 font-medium">Carte requise · 0 € pendant 7 jours · résiliable à tout moment</p>
             </form>
 
             <p className="text-center text-sm text-zinc-400 font-medium mt-6">
