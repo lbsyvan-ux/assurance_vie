@@ -1,7 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { X, Settings, ExternalLink, ShieldCheck, Brain, Search, Loader2 } from 'lucide-react';
+import { X, Settings, ExternalLink, ShieldCheck, Brain, Search, Loader2, CreditCard } from 'lucide-react';
 import { fetchConfig, saveConfig, type AppConfig } from '../lib/config';
+import { useSubscription } from '../hooks/useSubscription';
+import { openBillingPortal } from '../lib/billing';
 import { toast } from 'sonner';
+
+const STATUS_LABELS: Record<string, string> = {
+  trialing: 'Essai gratuit',
+  active: 'Actif',
+  past_due: 'Paiement en retard',
+  canceled: 'Résilié',
+  unpaid: 'Impayé',
+  incomplete: 'Incomplet',
+};
 
 interface Props {
   isOpen: boolean;
@@ -16,6 +27,20 @@ export const SettingsModal = ({ isOpen, onClose }: Props) => {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
+  const { subscription, loading: subLoading } = useSubscription();
+
+  const handleManageSubscription = async () => {
+    setPortalLoading(true);
+    try {
+      // Redirige vers le portail Stripe (gérer la carte / résilier).
+      await openBillingPortal();
+    } catch (e) {
+      console.error(e);
+      toast.error((e as Error).message || 'Impossible d\'ouvrir le portail de facturation');
+      setPortalLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -155,6 +180,50 @@ export const SettingsModal = ({ isOpen, onClose }: Props) => {
                   placeholder="Votre clé SerpAPI"
                 />
               </div>
+            </div>
+
+            <div className="space-y-4 pt-6 border-t border-zinc-50 dark:border-zinc-800">
+              <div className="flex items-center gap-2">
+                <CreditCard className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-400">Abonnement</h3>
+              </div>
+
+              <div className="flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 rounded-xl px-4 py-3">
+                <div className="text-sm">
+                  {subLoading ? (
+                    <span className="text-zinc-500 flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" /> Chargement…
+                    </span>
+                  ) : subscription ? (
+                    <>
+                      <span className="font-bold">
+                        {STATUS_LABELS[subscription.status] ?? subscription.status}
+                      </span>
+                      {subscription.current_period_end && (
+                        <span className="block text-xs text-zinc-500 mt-0.5">
+                          {subscription.cancel_at_period_end ? 'Se termine le ' : 'Renouvellement le '}
+                          {new Date(subscription.current_period_end).toLocaleDateString('fr-FR')}
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <span className="text-zinc-500">Aucun abonnement actif</span>
+                  )}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleManageSubscription}
+                disabled={portalLoading}
+                className="w-full px-4 py-3 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-xl text-sm font-bold hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+              >
+                {portalLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+                Gérer / résilier mon abonnement
+              </button>
+              <p className="text-[11px] text-zinc-400 text-center">
+                Vous serez redirigé vers le portail sécurisé Stripe.
+              </p>
             </div>
 
             <div className="bg-emerald-50 dark:bg-emerald-900/10 p-4 rounded-2xl flex items-start gap-3">
