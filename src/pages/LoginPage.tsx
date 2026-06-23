@@ -72,7 +72,7 @@ export const LoginPage = () => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-zinc-50 p-6">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-zinc-50 p-6 gap-6">
       <div className="w-full max-w-md p-10 bg-white border border-zinc-100 rounded-[2.5rem] shadow-xl shadow-zinc-200/50">
         
         {view === 'login' && (
@@ -228,6 +228,11 @@ export const LoginPage = () => {
             </form>
           </div>
         )}
+      </div>
+
+      <div className="flex items-center gap-2 text-zinc-300">
+        <img src="/wealthflow-logo.svg" alt="" className="h-4 w-4 object-contain opacity-50" />
+        <span className="text-[11px] font-medium tracking-wide">par WealthFlow</span>
       </div>
     </div>
   );

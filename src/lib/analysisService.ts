@@ -1,7 +1,6 @@
 import OpenAI from 'openai';
 import * as pdfjsLib from 'pdfjs-dist';
 import { supabase } from './supabase';
-import { searchFundData } from './serpapi';
 import { fetchConfig } from './config';
 
 // Configure PDF.js worker correctly for Vite
@@ -147,21 +146,9 @@ export const analyzeInsurancePdf = async (file: File, userId: string) => {
       });
   }
 
-  const resultsWithSearch = await Promise.all(results.map(async (r) => {
-    const isin = r.json.isin;
-    let source = "Analyse PDF";
-    
-    if (isin && isin.length >= 8 && config.serpApiKey) {
-      const searchResult = await searchFundData(isin);
-      if (searchResult && searchResult.link) {
-        source = searchResult.link;
-      }
-    }
-    
-    return {
-      ...r,
-      json: { ...r.json, source }
-    };
+  const resultsWithSearch = results.map((r) => ({
+    ...r,
+    json: { ...r.json, source: "Analyse PDF" },
   }));
 
   // 4. Final Aggregation

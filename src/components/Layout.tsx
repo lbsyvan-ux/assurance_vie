@@ -1,5 +1,5 @@
 import { useAuth } from '../hooks/useAuth';
-import { LogOut, FileText, Building2, PieChart, Settings } from 'lucide-react';
+import { LogOut, Building2, PieChart, Settings } from 'lucide-react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { useState } from 'react';
@@ -16,9 +16,11 @@ export const Layout = () => {
         <div className="container mx-auto flex h-20 items-center justify-between px-8">
           <div className="flex items-center gap-12">
             <Link to="/" className="flex items-center space-x-3 group">
-              <div className="p-2 bg-primary rounded-xl group-hover:rotate-3 transition-transform">
-                <FileText className="h-6 w-6 text-white" />
-              </div>
+              <img
+                src="/wealthflow-logo.svg"
+                alt="WealthFlow"
+                className="h-10 w-10 object-contain group-hover:rotate-3 transition-transform"
+              />
               <span className="inline-block font-extrabold text-2xl tracking-tight">Patrimoine Analyse</span>
             </Link>
 
@@ -75,6 +77,13 @@ export const Layout = () => {
       <main className="container mx-auto px-8 py-10">
         <Outlet />
       </main>
+
+      <footer className="container mx-auto px-8 pb-10 pt-4">
+        <div className="flex items-center justify-center gap-2 text-zinc-300">
+          <img src="/wealthflow-logo.svg" alt="" className="h-4 w-4 object-contain opacity-50" />
+          <span className="text-[11px] font-medium tracking-wide">par WealthFlow</span>
+        </div>
+      </footer>
 
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
     </div>

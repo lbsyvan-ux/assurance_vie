@@ -7,7 +7,6 @@ export type AIProvider = 'openai' | 'claude';
 export interface AppConfig {
   aiProvider: AIProvider;
   aiApiKey: string;
-  serpApiKey: string;
 }
 
 const ENCRYPTION_PREFIX = 'sec_v1_';
@@ -52,7 +51,6 @@ export const fetchConfig = async (): Promise<AppConfig> => {
     return {
       aiProvider: 'openai',
       aiApiKey: '',
-      serpApiKey: '',
     };
   }
 
@@ -60,7 +58,6 @@ export const fetchConfig = async (): Promise<AppConfig> => {
   return decrypted || {
     aiProvider: 'openai',
     aiApiKey: '',
-    serpApiKey: '',
   };
 };
 

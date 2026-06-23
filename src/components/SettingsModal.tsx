@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Settings, ExternalLink, ShieldCheck, Brain, Search, Loader2, CreditCard } from 'lucide-react';
+import { X, Settings, ExternalLink, ShieldCheck, Brain, Loader2, CreditCard } from 'lucide-react';
 import { fetchConfig, saveConfig, type AppConfig } from '../lib/config';
 import { useSubscription } from '../hooks/useSubscription';
 import { openBillingPortal } from '../lib/billing';
@@ -23,7 +23,6 @@ export const SettingsModal = ({ isOpen, onClose }: Props) => {
   const [config, setConfig] = useState<AppConfig>({
     aiProvider: 'openai',
     aiApiKey: '',
-    serpApiKey: '',
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -149,35 +148,6 @@ export const SettingsModal = ({ isOpen, onClose }: Props) => {
                   onChange={(e) => setConfig({ ...config, aiApiKey: e.target.value })}
                   className="w-full bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
                   placeholder={`sk-...`}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-4 pt-6 border-t border-zinc-50 dark:border-zinc-800">
-              <div className="flex items-center gap-2">
-                <Search className="h-4 w-4 text-primary" />
-                <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-400">Recherche (SerpAPI)</h3>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between text-xs">
-                  <label className="font-bold text-zinc-600 dark:text-zinc-400">Clé API SerpAPI</label>
-                  <a 
-                    href="https://serpapi.com/manage-api-key" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-primary hover:underline flex items-center gap-1 font-bold"
-                  >
-                    Gérer ma clé <ExternalLink className="h-3 w-3" />
-                  </a>
-                </div>
-                <input
-                  type="password"
-                  required
-                  value={config.serpApiKey}
-                  onChange={(e) => setConfig({ ...config, serpApiKey: e.target.value })}
-                  className="w-full bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-                  placeholder="Votre clé SerpAPI"
                 />
               </div>
             </div>

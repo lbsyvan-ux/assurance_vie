@@ -8,13 +8,4 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
-  server: {
-    proxy: {
-      '/serpapi': {
-        target: 'https://serpapi.com',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/serpapi/, ''),
-      },
-    },
-  },
 });
