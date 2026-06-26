@@ -186,8 +186,35 @@ export const ContractDetail = () => {
     setLocalContract({ ...localContract, [field]: value });
   };
 
+  const reportDate = new Date().toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+
   return (
     <div className="space-y-8 pb-20">
+      {/* Page de garde — visible uniquement à l'impression / export PDF */}
+      <div className="pdf-cover hidden print:flex flex-col items-center justify-center text-center">
+        <img src="/wealthflow-logo.svg" alt="WealthFlow" className="h-20 w-20 object-contain mb-8" />
+        <p className="text-xs uppercase tracking-[0.3em] text-zinc-400 font-bold">Analyse de frais</p>
+        <h1 className="text-4xl font-black tracking-tight mt-3 mb-2">
+          {localContract.contract_name || "Contrat d'assurance-vie"}
+        </h1>
+        <p className="text-lg text-zinc-500 font-medium">
+          {[localContract.insurer, localContract.product_name].filter(Boolean).join(' · ')}
+        </p>
+        <div className="mt-12 space-y-1">
+          <p className="text-[11px] uppercase tracking-widest text-zinc-400 font-bold">Préparé pour</p>
+          <p className="text-2xl font-bold">{localContract.contractor_name || '—'}</p>
+        </div>
+        <p className="mt-12 text-sm text-zinc-400 font-medium">{reportDate}</p>
+        <div className="pdf-cover-footer flex items-center gap-2 text-zinc-300">
+          <img src="/wealthflow-logo.svg" alt="" className="h-4 w-4 object-contain opacity-60" />
+          <span className="text-xs font-medium">par WealthFlow</span>
+        </div>
+      </div>
+
       <div className="flex items-center justify-between">
         <button 
           onClick={() => navigate(-1)}

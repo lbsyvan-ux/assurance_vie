@@ -136,4 +136,38 @@
     border: 2px solid #10b981 !important;
     background-color: #f0fdf4 !important;
   }
+
+  /* Page de garde : une page entière, puis saut de page vers le rapport */
+  .pdf-cover {
+    min-height: 88vh;
+    break-after: page;
+    page-break-after: always;
+    position: relative;
+    color: #18181b !important;
+  }
+  .pdf-cover-footer {
+    position: absolute;
+    bottom: 0;
+  }
+
+  /* Les <select> (type de contrat) rendus comme du texte simple */
+  select {
+    -webkit-appearance: none;
+    appearance: none;
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    font-weight: bold !important;
+    color: black !important;
+  }
+
+  /* On évite de couper une section (carte, graphique) entre deux pages */
+  section {
+    break-inside: avoid;
+  }
+
+  /* Le graphique d'impact des frais : calibré et non coupé */
+  .recharts-wrapper, .recharts-surface {
+    overflow: visible !important;
+  }
 }
