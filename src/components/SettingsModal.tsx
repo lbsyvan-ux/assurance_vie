@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Settings, ExternalLink, ShieldCheck, Brain, Loader2, CreditCard } from 'lucide-react';
-import { fetchConfig, saveConfig, type AppConfig } from '../lib/config';
+import { X, Settings, ShieldCheck, Loader2, CreditCard, Target } from 'lucide-react';
+import { fetchConfig, saveConfig, DEFAULT_TARGET_FEES, type AppConfig } from '../lib/config';
 import { useSubscription } from '../hooks/useSubscription';
 import { openBillingPortal } from '../lib/billing';
 import { toast } from 'sonner';
@@ -21,8 +21,7 @@ interface Props {
 
 export const SettingsModal = ({ isOpen, onClose }: Props) => {
   const [config, setConfig] = useState<AppConfig>({
-    aiProvider: 'openai',
-    aiApiKey: '',
+    targetFees: DEFAULT_TARGET_FEES,
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -86,7 +85,7 @@ export const SettingsModal = ({ isOpen, onClose }: Props) => {
             </div>
             <div>
               <h2 className="text-xl font-bold tracking-tight">Paramètres Cloud</h2>
-              <p className="text-xs text-zinc-500 font-medium">Clés synchronisées sur tous vos appareils</p>
+              <p className="text-xs text-zinc-500 font-medium">Synchronisés sur tous vos appareils</p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors">
@@ -97,58 +96,36 @@ export const SettingsModal = ({ isOpen, onClose }: Props) => {
         {isLoading ? (
           <div className="p-20 flex flex-col items-center justify-center gap-4">
             <Loader2 className="h-10 w-10 text-primary animate-spin" />
-            <p className="text-sm text-zinc-500 font-medium">Chargement de vos clés...</p>
+            <p className="text-sm text-zinc-500 font-medium">Chargement de vos paramètres...</p>
           </div>
         ) : (
           <form onSubmit={handleSave} className="p-8 space-y-8">
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Brain className="h-4 w-4 text-primary" />
-                  <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-400">Service d'IA</h3>
-                </div>
-                <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-lg">
-                  <button
-                    type="button"
-                    onClick={() => setConfig({ ...config, aiProvider: 'openai' })}
-                    className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${
-                      config.aiProvider === 'openai' ? 'bg-white dark:bg-zinc-700 shadow-sm' : 'text-zinc-500'
-                    }`}
-                  >
-                    OpenAI
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setConfig({ ...config, aiProvider: 'claude' })}
-                    className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${
-                      config.aiProvider === 'claude' ? 'bg-white dark:bg-zinc-700 shadow-sm' : 'text-zinc-500'
-                    }`}
-                  >
-                    Claude
-                  </button>
-                </div>
+              <div className="flex items-center gap-2">
+                <Target className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-400">Frais ciblés du cabinet</h3>
               </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between text-xs">
-                  <label className="font-bold text-zinc-600 dark:text-zinc-400">Clé API {config.aiProvider === 'openai' ? 'OpenAI' : 'Claude'}</label>
-                  <a 
-                    href={config.aiProvider === 'openai' ? 'https://platform.openai.com/api-keys' : 'https://console.anthropic.com/settings/keys'} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-primary hover:underline flex items-center gap-1 font-bold"
-                  >
-                    Obtenir une clé <ExternalLink className="h-3 w-3" />
-                  </a>
+              <p className="text-xs text-zinc-500 font-medium leading-relaxed">
+                Servent de référence « Cible » dans toutes vos analyses d'impact des frais.
+              </p>
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <label className="font-bold text-zinc-600 dark:text-zinc-400">Objectif de frais annuels</label>
+                  <span className="text-primary font-bold">{config.targetFees.toFixed(1)} %</span>
                 </div>
                 <input
-                  type="password"
-                  required
-                  value={config.aiApiKey}
-                  onChange={(e) => setConfig({ ...config, aiApiKey: e.target.value })}
-                  className="w-full bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-                  placeholder={`sk-...`}
+                  type="range"
+                  min="0"
+                  max="3"
+                  step="0.1"
+                  value={config.targetFees}
+                  onChange={(e) => setConfig({ ...config, targetFees: parseFloat(e.target.value) })}
+                  className="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-primary"
                 />
+                <div className="flex justify-between text-[10px] font-bold text-zinc-300">
+                  <span>0 %</span>
+                  <span>3 %</span>
+                </div>
               </div>
             </div>
 
@@ -199,7 +176,7 @@ export const SettingsModal = ({ isOpen, onClose }: Props) => {
             <div className="bg-emerald-50 dark:bg-emerald-900/10 p-4 rounded-2xl flex items-start gap-3">
               <ShieldCheck className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
               <p className="text-[11px] text-emerald-700 dark:text-emerald-300 font-medium leading-relaxed">
-                Vos clés sont désormais **cryptées** et sauvegardées dans votre profil. Elles sont accessibles sur tous vos appareils.
+                Vos paramètres sont enregistrés de façon sécurisée dans votre profil et accessibles sur tous vos appareils.
               </p>
             </div>
 

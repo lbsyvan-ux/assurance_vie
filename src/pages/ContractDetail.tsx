@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
+import { fetchConfig } from '../lib/config';
 import { FeesComparisonChart } from '../components/FeesComparisonChart';
 import { EditableFundTable } from '../components/EditableFundTable';
 import type { Fund } from '../components/EditableFundTable';
@@ -69,6 +70,15 @@ export const ContractDetail = () => {
         return data as Contract;
       }
     }
+  });
+
+  // Frais ciblés du cabinet (config utilisateur). Indisponible en accès public
+  // (pas de session) → le graphique retombe sur sa valeur par défaut.
+  const { data: appConfig } = useQuery({
+    queryKey: ['app-config'],
+    queryFn: fetchConfig,
+    enabled: !token,
+    staleTime: 60_000,
   });
 
   useEffect(() => {
@@ -287,9 +297,10 @@ export const ContractDetail = () => {
           </section>
 
           <section className="bg-white rounded-3xl overflow-hidden shadow-sm border border-zinc-100">
-            <FeesComparisonChart 
-              initialCapital={localContract.total_amount} 
-              currentFees={localContract.average_total_fees} 
+            <FeesComparisonChart
+              initialCapital={localContract.total_amount}
+              currentFees={localContract.average_total_fees}
+              targetFees={appConfig?.targetFees}
             />
           </section>
 

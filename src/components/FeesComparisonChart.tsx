@@ -32,7 +32,7 @@ export const FeesComparisonChart = ({ initialCapital, currentFees, targetFees = 
       chartData.push({
         year,
         "Votre Contrat": Math.round(valueCurrent),
-        "Cible (1.5%)": Math.round(valueTarget),
+        "Cible": Math.round(valueTarget),
         difference: Math.round(valueTarget - valueCurrent),
       });
     }
@@ -123,13 +123,14 @@ export const FeesComparisonChart = ({ initialCapital, currentFees, targetFees = 
                 formatter={(value: any) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(value as number)}
               />
               <Legend verticalAlign="top" height={36}/>
-              <Area 
-                type="monotone" 
-                dataKey="Cible (1.5%)" 
-                stroke="#3b82f6" 
+              <Area
+                type="monotone"
+                dataKey="Cible"
+                name={`Cible (${targetFees}%)`}
+                stroke="#3b82f6"
                 strokeWidth={3}
-                fillOpacity={1} 
-                fill="url(#colorTarget)" 
+                fillOpacity={1}
+                fill="url(#colorTarget)"
               />
               <Area 
                 type="monotone" 

@@ -2,12 +2,17 @@
 import { supabase } from './supabase';
 import * as CryptoJS from 'crypto-js';
 
-export type AIProvider = 'openai' | 'claude';
-
 export interface AppConfig {
-  aiProvider: AIProvider;
-  aiApiKey: string;
+  /** Frais ciblés du cabinet (%), réutilisés dans toutes les analyses. */
+  targetFees: number;
 }
+
+/** Valeur par défaut des frais ciblés tant que le cabinet ne l'a pas définie. */
+export const DEFAULT_TARGET_FEES = 1.5;
+
+const DEFAULT_CONFIG: AppConfig = {
+  targetFees: DEFAULT_TARGET_FEES,
+};
 
 const ENCRYPTION_PREFIX = 'sec_v1_';
 
@@ -48,17 +53,13 @@ export const fetchConfig = async (): Promise<AppConfig> => {
     .single();
 
   if (error || !data) {
-    return {
-      aiProvider: 'openai',
-      aiApiKey: '',
-    };
+    return { ...DEFAULT_CONFIG };
   }
 
   const decrypted = decrypt(data.config_encrypted, user.id);
-  return decrypted || {
-    aiProvider: 'openai',
-    aiApiKey: '',
-  };
+  // Fusion avec les valeurs par défaut : garantit que les anciennes configs
+  // (sans targetFees) reçoivent bien une valeur.
+  return decrypted ? { ...DEFAULT_CONFIG, ...decrypted } : { ...DEFAULT_CONFIG };
 };
 
 export const saveConfig = async (config: AppConfig): Promise<void> => {
