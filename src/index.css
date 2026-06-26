@@ -81,9 +81,15 @@
     border: 1px solid #e4e4e7 !important;
     border-radius: 8pt !important;
     box-shadow: none !important;
-    padding: 15pt !important;
-    margin-bottom: 15pt !important;
+    padding: 11pt !important;
+    margin-bottom: 8pt !important;
     break-inside: avoid; /* Évite de couper une carte en deux */
+  }
+
+  /* Espacements verticaux compactés pour le PDF */
+  .space-y-10 > * + *,
+  .space-y-8 > * + * {
+    margin-top: 10pt !important;
   }
 
   /* KPI Cards en 2 colonnes sur papier */
@@ -96,7 +102,7 @@
   /* Gestion des graphiques */
   .recharts-responsive-container {
     width: 100% !important;
-    height: 300px !important;
+    height: 240px !important;
   }
   
   canvas {

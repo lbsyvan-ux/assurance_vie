@@ -256,6 +256,8 @@ export const ContractDetail = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-10">
+          {/* Infos contrat + graphique regroupés : restent sur la même page en PDF */}
+          <div className="space-y-10 print:break-inside-avoid">
           <section className="bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-3xl p-8 shadow-sm">
             <div className="flex flex-col md:flex-row gap-10">
               <div className="flex-1 space-y-6">
@@ -330,9 +332,10 @@ export const ContractDetail = () => {
               targetFees={appConfig?.targetFees}
             />
           </section>
+          </div>
 
           <section className="bg-white rounded-3xl p-8 shadow-sm border border-zinc-100">
-            <EditableFundTable 
+            <EditableFundTable
               funds={localContract.funds} 
               onUpdate={handleUpdateFunds} 
             />
