@@ -6,27 +6,64 @@ import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import type { IncomingMessage } from 'http';
 
-function required(name: string): string {
+function getEnv(name: string, required = false): string {
   const value = process.env[name];
-  if (!value) throw new Error(`Variable d'environnement manquante: ${name}`);
-  return value;
+  if (required && !value) {
+    throw new Error(`Variable d'environnement manquante: ${name}`);
+  }
+  return value || '';
 }
 
-export const stripe = new Stripe(required('STRIPE_SECRET_KEY'), {
-  apiVersion: '2025-08-27.basil',
+// Initialisation différée de Stripe pour éviter de crasher au chargement du module
+// si Stripe n'est pas encore configuré (ex: lors d'une simple analyse PDF)
+let _stripe: Stripe | null = null;
+export function getStripe(): Stripe {
+  if (!_stripe) {
+    const key = getEnv('STRIPE_SECRET_KEY', true);
+    _stripe = new Stripe(key, {
+      apiVersion: '2025-08-27.basil',
+    });
+  }
+  return _stripe;
+}
+
+export const stripe = new Proxy({} as Stripe, {
+  get(_target, prop) {
+    return (getStripe() as any)[prop];
+  },
 });
 
-// Client Supabase "admin" : bypass la RLS. Utilisé UNIQUEMENT par le webhook
-// (côté serveur) pour écrire le statut d'abonnement de façon fiable.
-export const supabaseAdmin = createClient(
-  required('SUPABASE_URL'),
-  required('SUPABASE_SERVICE_ROLE_KEY'),
-  { auth: { persistSession: false, autoRefreshToken: false } },
-);
+// Client Supabase "admin" : bypass la RLS.
+let _supabaseAdmin: any = null;
+export function getSupabaseAdmin() {
+  if (!_supabaseAdmin) {
+    const url = getEnv('SUPABASE_URL') || getEnv('VITE_SUPABASE_URL');
+    const key = getEnv('SUPABASE_SERVICE_ROLE_KEY');
+    if (!url || !key) {
+      console.warn('[server.ts] SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY manquant');
+    }
+    _supabaseAdmin = createClient(
+      url || 'https://placeholder.supabase.co',
+      key || 'placeholder',
+      { auth: { persistSession: false, autoRefreshToken: false } },
+    );
+  }
+  return _supabaseAdmin;
+}
+
+export const supabaseAdmin = new Proxy({} as ReturnType<typeof createClient>, {
+  get(_target, prop) {
+    return (getSupabaseAdmin() as any)[prop];
+  },
+});
 
 export const PRICES: Record<'monthly' | 'annual', string> = {
-  monthly: required('STRIPE_PRICE_MONTHLY'),
-  annual: required('STRIPE_PRICE_ANNUAL'),
+  get monthly() {
+    return getEnv('STRIPE_PRICE_MONTHLY', true);
+  },
+  get annual() {
+    return getEnv('STRIPE_PRICE_ANNUAL', true);
+  },
 };
 
 // Vérifie le JWT Supabase envoyé par le front (header Authorization: Bearer ...)
@@ -34,7 +71,13 @@ export const PRICES: Record<'monthly' | 'annual', string> = {
 export async function getUserFromRequest(authHeader?: string) {
   if (!authHeader?.startsWith('Bearer ')) return null;
   const token = authHeader.slice('Bearer '.length);
-  const anon = createClient(required('SUPABASE_URL'), required('SUPABASE_ANON_KEY'), {
+  const url = getEnv('SUPABASE_URL') || getEnv('VITE_SUPABASE_URL');
+  const anonKey = getEnv('SUPABASE_ANON_KEY') || getEnv('VITE_SUPABASE_ANON_KEY');
+  if (!url || !anonKey) {
+    console.error('[server.ts] URL Supabase ou clé Anon manquante');
+    return null;
+  }
+  const anon = createClient(url, anonKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   const { data, error } = await anon.auth.getUser(token);

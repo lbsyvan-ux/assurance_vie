@@ -20,14 +20,18 @@ export const FeesComparisonChart = ({ initialCapital, currentFees, targetFees = 
   const [duration, setDuration] = useState(30);
   const [grossReturn, setGrossReturn] = useState(6);
 
+  const safeCapital = typeof initialCapital === 'number' && !isNaN(initialCapital) ? Math.max(0, initialCapital) : 0;
+  const safeCurrentFees = typeof currentFees === 'number' && !isNaN(currentFees) ? Math.max(0, currentFees) : 0;
+  const safeTargetFees = typeof targetFees === 'number' && !isNaN(targetFees) ? Math.max(0, targetFees) : 1.5;
+
   const data = useMemo(() => {
     const chartData = [];
     for (let year = 0; year <= duration; year++) {
-      const netReturnCurrent = (grossReturn - currentFees) / 100;
-      const netReturnTarget = (grossReturn - targetFees) / 100;
+      const netReturnCurrent = (grossReturn - safeCurrentFees) / 100;
+      const netReturnTarget = (grossReturn - safeTargetFees) / 100;
 
-      const valueCurrent = initialCapital * Math.pow(1 + netReturnCurrent, year);
-      const valueTarget = initialCapital * Math.pow(1 + netReturnTarget, year);
+      const valueCurrent = safeCapital * Math.pow(1 + netReturnCurrent, year);
+      const valueTarget = safeCapital * Math.pow(1 + netReturnTarget, year);
 
       chartData.push({
         year,
@@ -37,15 +41,15 @@ export const FeesComparisonChart = ({ initialCapital, currentFees, targetFees = 
       });
     }
     return chartData;
-  }, [initialCapital, currentFees, targetFees, duration, grossReturn]);
+  }, [safeCapital, safeCurrentFees, safeTargetFees, duration, grossReturn]);
 
-  const finalDifference = data[data.length - 1].difference;
+  const finalDifference = data.length > 0 ? data[data.length - 1].difference : 0;
 
   return (
     <div className="space-y-8 p-6 bg-white dark:bg-zinc-900 border border-border rounded-xl shadow-sm">
       <div className="flex flex-col md:flex-row justify-between gap-6">
         <div className="space-y-6 flex-1">
-          <h3 className="text-lg font-semibold">Impact des frais sur 30 ans</h3>
+          <h3 className="text-lg font-semibold">Impact des frais sur {duration} ans</h3>
           
           <div className="space-y-4">
             <div className="space-y-2">
@@ -58,7 +62,7 @@ export const FeesComparisonChart = ({ initialCapital, currentFees, targetFees = 
                 min="5"
                 max="50"
                 value={duration}
-                onChange={(e) => setDuration(parseInt(e.target.value))}
+                onChange={(e) => setDuration(parseInt(e.target.value) || 30)}
                 className="w-full h-2 bg-zinc-200 rounded-lg appearance-none cursor-pointer accent-primary"
               />
             </div>
@@ -74,7 +78,7 @@ export const FeesComparisonChart = ({ initialCapital, currentFees, targetFees = 
                 max="12"
                 step="0.5"
                 value={grossReturn}
-                onChange={(e) => setGrossReturn(parseFloat(e.target.value))}
+                onChange={(e) => setGrossReturn(parseFloat(e.target.value) || 6)}
                 className="w-full h-2 bg-zinc-200 rounded-lg appearance-none cursor-pointer accent-primary"
               />
             </div>
@@ -86,7 +90,7 @@ export const FeesComparisonChart = ({ initialCapital, currentFees, targetFees = 
               {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(finalDifference)}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              En réduisant vos frais à {targetFees}%, vous pourriez gagner cette somme supplémentaire.
+              En réduisant vos frais à {safeTargetFees}%, vous pourriez gagner cette somme supplémentaire.
             </p>
           </div>
         </div>
@@ -126,7 +130,7 @@ export const FeesComparisonChart = ({ initialCapital, currentFees, targetFees = 
               <Area
                 type="monotone"
                 dataKey="Cible"
-                name={`Cible (${targetFees}%)`}
+                name={`Cible (${safeTargetFees}%)`}
                 stroke="#3b82f6"
                 strokeWidth={3}
                 fillOpacity={1}

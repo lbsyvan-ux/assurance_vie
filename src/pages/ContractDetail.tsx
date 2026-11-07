@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 import { fetchConfig } from '../lib/config';
 import { FeesComparisonChart } from '../components/FeesComparisonChart';
 import { EditableFundTable } from '../components/EditableFundTable';
-import type { Fund } from '../components/EditableFundTable';
+import { isFundAnomaly, type Fund } from '../lib/fundUtils';
 import { 
   Save, 
   Trash2, 
@@ -83,37 +83,37 @@ export const ContractDetail = () => {
 
   useEffect(() => {
     if (contract) {
-      console.log('Contract data received:', contract);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLocalContract(contract);
     }
   }, [contract]);
 
-  const isFundAnomaly = (fund: Fund): boolean => {
-    return fund.contractFees === 0 || fund.fundFees === 0 || fund.contractFees < 0.1 || fund.fundFees < 0.1;
-  };
-
   const recalculateTotals = (funds: Fund[]) => {
     const validFunds = funds.filter(f => !isFundAnomaly(f));
-    const totalAmount = funds.reduce((sum, f) => sum + f.amount, 0);
-    const totalAnnualFees = validFunds.reduce((sum, f) => sum + f.annualFeesAmount, 0);
-    const validTotalAmount = validFunds.reduce((sum, f) => sum + f.amount, 0);
+    const totalAmount = funds.reduce((sum, f) => sum + (f.amount || 0), 0);
+    
+    // Si aucun fonds n'est valide (ex: relevé sans frais détaillés), on prend l'ensemble
+    // des fonds pour éviter d'afficher 0% ou des NaN
+    const fundsForFees = validFunds.length > 0 ? validFunds : funds;
+    const totalAnnualFees = fundsForFees.reduce((sum, f) => sum + (f.annualFeesAmount || 0), 0);
+    const validTotalAmount = fundsForFees.reduce((sum, f) => sum + (f.amount || 0), 0);
 
     const weightedContractFees = validTotalAmount > 0
-      ? validFunds.reduce((sum, f) => sum + f.contractFees * f.amount, 0) / validTotalAmount
+      ? fundsForFees.reduce((sum, f) => sum + (f.contractFees || 0) * (f.amount || 0), 0) / validTotalAmount
       : 0;
       
     const weightedFundFees = validTotalAmount > 0
-      ? validFunds.reduce((sum, f) => sum + f.fundFees * f.amount, 0) / validTotalAmount
+      ? fundsForFees.reduce((sum, f) => sum + (f.fundFees || 0) * (f.amount || 0), 0) / validTotalAmount
       : 0;
       
     const weightedTotalFees = weightedContractFees + weightedFundFees;
 
     return { 
-      total_amount: totalAmount, 
-      total_annual_fees: totalAnnualFees, 
-      average_contract_fees: weightedContractFees, 
-      average_fund_fees: weightedFundFees, 
-      average_total_fees: weightedTotalFees 
+      total_amount: Number(totalAmount.toFixed(2)), 
+      total_annual_fees: Number(totalAnnualFees.toFixed(2)), 
+      average_contract_fees: Number(weightedContractFees.toFixed(4)), 
+      average_fund_fees: Number(weightedFundFees.toFixed(4)), 
+      average_total_fees: Number(weightedTotalFees.toFixed(4)) 
     };
   };
 
@@ -161,7 +161,7 @@ export const ContractDetail = () => {
   if (error) return (
     <div className="text-center py-20">
       <p className="text-error font-bold text-xl">Erreur lors du chargement</p>
-      <p className="text-sm text-muted-foreground mt-2">{(error as any)?.message || 'Une erreur inconnue'}</p>
+      <p className="text-sm text-muted-foreground mt-2">{(error as Error)?.message || 'Une erreur inconnue'}</p>
       <button onClick={() => navigate('/')} className="mt-6 text-primary hover:underline">Retour au dashboard</button>
     </div>
   );
