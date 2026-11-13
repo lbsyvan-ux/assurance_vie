@@ -1,8 +1,10 @@
 // POST /api/analyze
-// Analyse le texte d'un relevé d'assurance-vie ou PER via OpenAI, avec la clé
-// OpenAI PARTAGÉE du cabinet (OPENAI_API_KEY, secret serveur — jamais exposée
-// au navigateur).
+// Analyse le texte d'un relevé d'assurance-vie ou PER.
+// Priorité à Claude Sonnet (Anthropic) pour une précision d'extraction maximale,
+// avec système d'Auto-Fix (2ème passe automatique en cas d'anomalie de parsing)
+// et fallback transparent sur OpenAI (GPT-4o) si seule OPENAI_API_KEY est configurée.
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
 import { supabaseAdmin, getUserFromRequest, ACTIVE_STATUSES } from '../lib/server.js';
 
@@ -12,7 +14,7 @@ Ton rôle est d'analyser le texte extrait d'un relevé de situation annuel (ou r
 ### MISSION & RÈGLES D'EXTRACTION CRUCIALES :
 
 1. INFORMATIONS DU CONTRAT :
-- assureur : Nom de la compagnie d'assurance (ex: Generali, Spirica, Suravenir, AXA, CNP Assurances, Cardif, SwissLife, Abeille Assurances, Crédit Agricole, etc.). Si non mentionné, "Non précisé".
+- assureur : Nom de la compagnie d'assurance (ex: Generali, Spirica, Suravenir, AXA, CNP Assurances, Cardif, SwissLife, Abeille Assurances, Crédit Agricole, La Banque Postale, etc.). Si non mentionné, "Non précisé".
 - nom_produit : Nom commercial exact du contrat (ex: Cachemire Patrimoine, Linxea Avenir, Lucya Cardif, Séquoia, etc.).
 - contractant : Nom et prénom du titulaire / souscripteur. Si non mentionné, "Non précisé".
 - type_contrat : "assurance_vie" ou "per" (si le document mentionne PER, Plan Épargne Retraite, PERIN, PERP ou Madelin).
@@ -23,7 +25,7 @@ Ton rôle est d'analyser le texte extrait d'un relevé de situation annuel (ou r
 2. EXTRACTION DES SUPPORTS D'INVESTISSEMENT (ACTIFS) :
 RÈGLE ABSOLUE : Tu DOIS extraire TOUS les supports listés dans le relevé sans exception :
 A) LE FONDS EN EUROS (s'il est présent) :
-   - Exemples de libellés : "Fonds en euros", "Actif Général", "Fonds Euro", "Suravenir Opportunités", "Euro Exclusif", "Netissima", "Eurossima", etc.
+   - Exemples de libellés : "Fonds en euros", "Actif Général", "Fonds Euro", "Suravenir Opportunités", "Euro Exclusif", "Netissima", "Eurossima", "Support en euros", etc.
    - isin : "FONDS_EURO" (ou vide s'il n'y a pas de code).
    - type_support : "euro".
    - frais_gestion_fonds : 0.0 (car le rendement d'un fonds euro est légalement net de frais de gestion financière).
@@ -38,8 +40,8 @@ B) LES UNITÉS DE COMPTE (UC) & PIERRE-PAPIER :
    - frais_gestion_contrat : Frais de gestion du contrat en % (ex: 0.60). RÈGLE CRUCIALE : Si ce taux n'est pas répété sur chaque ligne du tableau, reporte systématiquement le taux de frais de gestion global du contrat à toutes les lignes d'actifs.
    - frais_gestion_fonds : Frais de gestion propres au fonds / frais courants / frais DICI en % (ex: 1.80%). Si présents dans le tableau de transparence (loi Pacte) ou dans la ligne, indique-les. Si introuvables dans le document, indique 0.
 
-3. RÈGLES DE FORMATAGE JSON :
-- Renvoie UNIQUEMENT un objet JSON valide (aucun blabla avant ou après).
+3. RÈGLES STRICTES DE FORMATAGE JSON :
+- Renvoie UNIQUEMENT un objet JSON valide (aucun texte, markdown ou commentaire avant ou après).
 - Tous les montants financiers (encours) et pourcentages (frais) doivent être des nombres décimaux (ex: 15508.45 et NON "15 508,45 €").
 - Format de sortie attendu :
 {
@@ -66,6 +68,198 @@ B) LES UNITÉS DE COMPTE (UC) & PIERRE-PAPIER :
     }
   ]
 }`;
+
+interface RawActif {
+  nom_du_fonds?: string;
+  nom?: string;
+  isin?: string;
+  type_support?: string;
+  encours?: number | string;
+  frais_gestion_fonds?: number | string;
+  frais_gestion_contrat?: number | string;
+  total_frais?: number | string;
+  cout_annuel_frais?: number | string;
+  coefficient?: number | string;
+}
+
+interface RawContrat {
+  nom_produit?: string;
+  assureur?: string;
+  contractant?: string;
+  type_contrat?: string;
+  date_situation?: string;
+  frais_gestion_contrat_global?: number | string;
+  encours_total_contrat?: number | string;
+}
+
+interface ParsedAiOutput {
+  contrat: RawContrat;
+  actifs: RawActif[];
+}
+
+function extractJson(text: string): Record<string, unknown> {
+  const cleaned = text.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    const match = text.match(/\{[\s\S]*\}/);
+    if (match) {
+      return JSON.parse(match[0]);
+    }
+    throw new Error("L'IA n'a pas retourné de JSON exploitable.");
+  }
+}
+
+function validateAiOutput(data: unknown): { valid: boolean; error?: string; output?: ParsedAiOutput } {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    return { valid: false, error: "La réponse n'est pas un objet JSON valide." };
+  }
+  const record = data as Record<string, unknown>;
+  const contrat = (record.contrat || record.contract || {}) as RawContrat;
+  const actifsRaw = record.actifs || record.assets || record.funds;
+
+  if (!Array.isArray(actifsRaw)) {
+    return { valid: false, error: "La propriété 'actifs' est manquante ou n'est pas une liste." };
+  }
+
+  return {
+    valid: true,
+    output: {
+      contrat: {
+        nom_produit: contrat.nom_produit || 'Non précisé',
+        assureur: contrat.assureur || 'Non précisé',
+        contractant: contrat.contractant || 'Non précisé',
+        type_contrat: contrat.type_contrat || 'assurance_vie',
+        date_situation: contrat.date_situation,
+        frais_gestion_contrat_global: contrat.frais_gestion_contrat_global,
+        encours_total_contrat: contrat.encours_total_contrat,
+      },
+      actifs: actifsRaw as RawActif[],
+    },
+  };
+}
+
+async function analyzeWithAnthropic(
+  apiKey: string,
+  docText: string
+): Promise<ParsedAiOutput> {
+  const anthropic = new Anthropic({ apiKey });
+  const primaryModel = process.env.ANTHROPIC_MODEL || 'claude-3-7-sonnet-20250219';
+  const fallbackModel = 'claude-3-5-sonnet-20241022';
+
+  const userPrompt = `Voici le texte extrait du document PDF d'assurance-vie / PER :\n\n${docText}`;
+
+  let rawContent = '';
+  let modelUsed = primaryModel;
+
+  try {
+    const response = await anthropic.messages.create({
+      model: modelUsed,
+      max_tokens: 4096,
+      temperature: 0.1,
+      system: SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: userPrompt }],
+    });
+
+    rawContent = response.content
+      .filter((block) => block.type === 'text')
+      .map((block) => (block as { type: 'text'; text: string }).text)
+      .join('\n');
+  } catch (err: unknown) {
+    // Si le modèle 3.7 n'est pas disponible pour ce compte, bascule automatique sur 3.5 Sonnet
+    const errMsg = err instanceof Error ? err.message : '';
+    if (errMsg.includes('not_found') || errMsg.includes('model')) {
+      console.warn(`Modèle ${primaryModel} non disponible, bascule sur ${fallbackModel}...`);
+      modelUsed = fallbackModel;
+      const fallbackResponse = await anthropic.messages.create({
+        model: modelUsed,
+        max_tokens: 4096,
+        temperature: 0.1,
+        system: SYSTEM_PROMPT,
+        messages: [{ role: 'user', content: userPrompt }],
+      });
+      rawContent = fallbackResponse.content
+        .filter((block) => block.type === 'text')
+        .map((block) => (block as { type: 'text'; text: string }).text)
+        .join('\n');
+    } else {
+      throw err;
+    }
+  }
+
+  // Tentative de parsing & validation (Passe 1)
+  try {
+    const parsed = extractJson(rawContent);
+    const validation = validateAiOutput(parsed);
+    if (validation.valid && validation.output) {
+      return validation.output;
+    }
+  } catch {
+    // Échec de la passe 1 : on passe à l'Auto-Fix
+  }
+
+  // --- PASSE 2 : AUTO-FIX (Inspiré du nœud Auto-fixing Output Parser de n8n) ---
+  console.warn("Auto-fixing parser déclenché pour corriger la sortie Claude...");
+  const repairResponse = await anthropic.messages.create({
+    model: modelUsed,
+    max_tokens: 4096,
+    temperature: 0,
+    system: "Tu es un parseur JSON financier ultra-strict. Ton rôle est de réparer et formater strictement le JSON retourné sans aucun blabla.",
+    messages: [
+      { role: 'user', content: userPrompt },
+      { role: 'assistant', content: rawContent },
+      {
+        role: 'user',
+        content: `La complétion précédente contient des erreurs de structure ou n'est pas un JSON valide.\nExigences strictes :\n- Renvoie UNIQUEMENT un objet JSON avec les clés "contrat" et "actifs" (liste).\n- Aucun texte explicatif avant ou après.\n- Corrige et renvoie le JSON complet maintenant.`,
+      },
+    ],
+  });
+
+  const repairedRaw = repairResponse.content
+    .filter((block) => block.type === 'text')
+    .map((block) => (block as { type: 'text'; text: string }).text)
+    .join('\n');
+
+  const repairedJson = extractJson(repairedRaw);
+  const secondValidation = validateAiOutput(repairedJson);
+
+  if (!secondValidation.valid || !secondValidation.output) {
+    throw new Error(secondValidation.error || "Impossible de parser les données du contrat.");
+  }
+
+  return secondValidation.output;
+}
+
+async function analyzeWithOpenAI(
+  apiKey: string,
+  docText: string
+): Promise<ParsedAiOutput> {
+  const openai = new OpenAI({ apiKey });
+  const modelToUse = process.env.OPENAI_MODEL || 'gpt-4o';
+
+  const response = await openai.chat.completions.create({
+    model: modelToUse,
+    messages: [
+      { role: 'system', content: SYSTEM_PROMPT },
+      {
+        role: 'user',
+        content: `Voici le texte extrait du document PDF d'assurance-vie / PER :\n\n${docText}`,
+      },
+    ],
+    response_format: { type: 'json_object' },
+    temperature: 0.1,
+  });
+
+  const rawContent = response.choices[0]?.message?.content || '{}';
+  const parsed = extractJson(rawContent);
+  const validation = validateAiOutput(parsed);
+
+  if (!validation.valid || !validation.output) {
+    throw new Error(validation.error || "L'IA n'a pas retourné de JSON exploitable.");
+  }
+
+  return validation.output;
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -110,48 +304,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Texte du document manquant ou trop court.' });
   }
 
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    return res.status(500).json({ error: "Clé OPENAI_API_KEY non configurée sur le serveur." });
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  const openaiKey = process.env.OPENAI_API_KEY;
+
+  if (!anthropicKey && !openaiKey) {
+    return res.status(500).json({
+      error: 'Aucune clé IA configurée sur le serveur (ANTHROPIC_API_KEY ou OPENAI_API_KEY).',
+    });
   }
 
-  // 4) Appel OpenAI
+  // 4) Exécution de l'analyse IA (Claude Sonnet par défaut avec auto-fix, ou fallback OpenAI)
   try {
-    const openai = new OpenAI({ apiKey });
-    const modelToUse = process.env.OPENAI_MODEL || 'gpt-4o';
+    let result: ParsedAiOutput;
 
-    const response = await openai.chat.completions.create({
-      model: modelToUse,
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        {
-          role: 'user',
-          content: `Voici le texte extrait du document PDF d'assurance-vie / PER :\n\n${text}`,
-        },
-      ],
-      response_format: { type: 'json_object' },
-      temperature: 0.1,
-    });
-
-    const rawContent = response.choices[0]?.message?.content || '{}';
-    const cleanedJson = rawContent.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
-    
-    let parsed: Record<string, unknown>;
-    try {
-      parsed = JSON.parse(cleanedJson);
-    } catch {
-      const match = rawContent.match(/\{[\s\S]*\}/);
-      if (match) {
-        parsed = JSON.parse(match[0]);
-      } else {
-        throw new Error("L'IA n'a pas retourné de JSON exploitable.");
-      }
+    if (anthropicKey) {
+      result = await analyzeWithAnthropic(anthropicKey, text);
+    } else {
+      result = await analyzeWithOpenAI(openaiKey!, text);
     }
 
-    return res.status(200).json(parsed);
+    return res.status(200).json(result);
   } catch (err: unknown) {
     console.error('Erreur API analyze :', err);
-    const message = err instanceof Error ? err.message : "Erreur lors de l'analyse du document par l'IA.";
+    const message =
+      err instanceof Error ? err.message : "Erreur lors de l'analyse du document par l'IA.";
     return res.status(500).json({ error: message });
   }
 }
